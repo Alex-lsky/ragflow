@@ -14,19 +14,26 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 清理工作空间
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo apt-get clean
+          df -h
+
       - name: Check out code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+          fetch-depth: 1  # 减少克隆深度
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
-          driver-opts: |
-            image=moby/buildkit:latest
+          driver: docker  # 使用默认 docker driver
           buildkitd-flags: --debug
 
       - name: Login to Aliyun Container Registry
@@ -40,7 +47,7 @@ jobs:
         id: sha
         run: echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-      # 只构建 amd64 版本
+      # 构建并推送 slim 版本
       - name: Build and push slim version
         uses: docker/build-push-action@v5
         with:
@@ -48,21 +55,37 @@ jobs:
           push: true
           build-args: |
             LIGHTEN=1
-          platforms: linux/amd64
           tags: |
             ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:slim-localai-${{ steps.sha.outputs.sha }}
             ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:slim-localai-latest
+          cache-from: type=registry,ref=${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:slim-localai-latest
+          cache-to: type=inline
 
+      # 清理中间镜像和缓存
+      - name: Clean up after slim build
+        run: |
+          docker system prune -af
+          df -h
+
+      # 构建并推送完整版本
       - name: Build and push full version
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          platforms: linux/amd64
           tags: |
             ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:full-localai-${{ steps.sha.outputs.sha }}
             ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:full-localai-latest
             ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:localai-latest
+          cache-from: type=registry,ref=${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:full-localai-latest
+          cache-to: type=inline
+
+      # 最终清理
+      - name: Final cleanup
+        if: always()
+        run: |
+          docker system prune -af
+          df -h
 
       - name: Notification
         if: always()
