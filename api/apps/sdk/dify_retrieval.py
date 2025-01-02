@@ -60,7 +60,7 @@ def retrieval(tenant_id):
         for c in ranks["chunks"]:
             c.pop("vector", None)
             records.append({
-                "content": c["content_ltks"],
+                "content": c["content"],
                 "score": c["similarity"],
                 "title": c["docnm_kwd"],
                 "metadata": {}
