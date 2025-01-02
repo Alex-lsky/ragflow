@@ -1,0 +1,78 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - localai
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  # 允许手动触发工作流
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          platforms: linux/amd64,linux/arm64
+
+      - name: Login to Aliyun Container Registry
+        uses: aliyun/acr-login@v1
+        with:
+          login-server: ${{ secrets.ALIYUN_REGISTRY }}
+          username: ${{ secrets.ALIYUN_USERNAME }}
+          password: ${{ secrets.ALIYUN_PASSWORD }}
+
+      - name: Get current time
+        id: time
+        run: echo "time=$(date +'%Y%m%d-%H%M')" >> $GITHUB_OUTPUT
+
+      - name: Get short SHA
+        id: sha
+        run: echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Build and push slim version
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          build-args: |
+            LIGHTEN=1
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:slim-localai-${{ steps.sha.outputs.sha }}
+            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:slim-localai-latest
+
+      - name: Build and push full version
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:full-localai-${{ steps.sha.outputs.sha }}
+            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:full-localai-latest
+            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:localai-latest
+
+      - name: Image digest
+        run: |
+          echo "Slim version digest: ${{ steps.slim_build.outputs.digest }}"
+          echo "Full version digest: ${{ steps.full_build.outputs.digest }}"
+
+      - name: Notification
+        if: always()
+        run: |
+          echo "::notice::Build completed for commit ${{ steps.sha.outputs.sha }}"
+          echo "::notice::Images pushed to ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow"
