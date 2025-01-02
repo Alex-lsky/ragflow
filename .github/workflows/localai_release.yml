@@ -40,8 +40,8 @@ jobs:
         id: sha
         run: echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-      # 首先只构建 amd64 版本的 slim 镜像
-      - name: Build and push slim version (amd64)
+      # 只构建 amd64 版本
+      - name: Build and push slim version
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -50,74 +50,19 @@ jobs:
             LIGHTEN=1
           platforms: linux/amd64
           tags: |
-            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:slim-localai-${{ steps.sha.outputs.sha }}-amd64
-            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:slim-localai-latest-amd64
+            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:slim-localai-${{ steps.sha.outputs.sha }}
+            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:slim-localai-latest
 
-      # 构建 arm64 版本的 slim 镜像
-      - name: Build and push slim version (arm64)
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          build-args: |
-            LIGHTEN=1
-          platforms: linux/arm64
-          tags: |
-            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:slim-localai-${{ steps.sha.outputs.sha }}-arm64
-            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:slim-localai-latest-arm64
-
-      # 构建 amd64 版本的完整镜像
-      - name: Build and push full version (amd64)
+      - name: Build and push full version
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           platforms: linux/amd64
           tags: |
-            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:full-localai-${{ steps.sha.outputs.sha }}-amd64
-            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:full-localai-latest-amd64
-            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:localai-latest-amd64
-
-      # 构建 arm64 版本的完整镜像
-      - name: Build and push full version (arm64)
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          platforms: linux/arm64
-          tags: |
-            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:full-localai-${{ steps.sha.outputs.sha }}-arm64
-            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:full-localai-latest-arm64
-            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:localai-latest-arm64
-
-      - name: Create and push manifest lists
-        run: |
-          # For slim version
-          docker manifest create ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:slim-localai-${{ steps.sha.outputs.sha }} \
-            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:slim-localai-${{ steps.sha.outputs.sha }}-amd64 \
-            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:slim-localai-${{ steps.sha.outputs.sha }}-arm64
-          docker manifest push ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:slim-localai-${{ steps.sha.outputs.sha }}
-
-          docker manifest create ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:slim-localai-latest \
-            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:slim-localai-latest-amd64 \
-            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:slim-localai-latest-arm64
-          docker manifest push ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:slim-localai-latest
-
-          # For full version
-          docker manifest create ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:full-localai-${{ steps.sha.outputs.sha }} \
-            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:full-localai-${{ steps.sha.outputs.sha }}-amd64 \
-            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:full-localai-${{ steps.sha.outputs.sha }}-arm64
-          docker manifest push ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:full-localai-${{ steps.sha.outputs.sha }}
-
-          docker manifest create ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:full-localai-latest \
-            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:full-localai-latest-amd64 \
-            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:full-localai-latest-arm64
-          docker manifest push ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:full-localai-latest
-
-          docker manifest create ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:localai-latest \
-            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:localai-latest-amd64 \
-            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:localai-latest-arm64
-          docker manifest push ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:localai-latest
+            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:full-localai-${{ steps.sha.outputs.sha }}
+            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:full-localai-latest
+            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/ragflow:localai-latest
 
       - name: Notification
         if: always()
